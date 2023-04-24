@@ -1,0 +1,60 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app.kubernetes.io/component: medis-sftp-app
+  app.kubernetes.io/instance: medis-sftp-app
+  app.kubernetes.io/name: medis-sftp-app
+  app.kubernetes.io/part-of: medis-sftp
+  app.openshift.io/runtime: alpine
+  app: medis-sftp-app
+  template: medis-sftp-template
+metadata:
+  name: medis-sftp-app
+objects:
+  - apiVersion: image.openshift.io/v1
+    kind: ImageStream
+    metadata:
+      name: medis-sftp-image
+    spec:
+      lookupPolicy:
+        local: false
+
+  - apiVersion: build.openshift.io/v1
+    kind: BuildConfig
+    metadata:
+      name: medis-sftp-app
+    spec:
+      failedBuildsHistoryLimit: 5
+      nodeSelector: null
+      output:
+        to:
+          kind: ImageStreamTag
+          name: medis-sftp-image:latest
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        git:
+          uri: ${SOURCE_REPO_URL}
+        type: Git
+      strategy:
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+        type: Docker
+      successfulBuildsHistoryLimit: 5
+      triggers:
+      - generic:
+          secretReference:
+            name: medis-sftp-webhook-secret
+        type: Generic
+      - github:
+          secretReference:
+            name: medis-sftp-github-webhook-secret
+        type: GitHub
+      - type: ConfigChange
+parameters:
+  - name: SOURCE_REPO_URL
+    description: Git Repository URL
+    displayName: Source Repository URL
+    required: true
