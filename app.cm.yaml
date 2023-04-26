@@ -1,0 +1,77 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app.kubernetes.io/component: medis-sftp-app
+  app.kubernetes.io/instance: medis-sftp-app
+  app.kubernetes.io/name: medis-sftp-app
+  app.kubernetes.io/part-of: medis-etl
+  app.openshift.io/runtime: alpine
+  app: "medis-sftp-app"
+  template: "medis-sftp-app-cm-template"
+metadata:
+  name: "medis-sftp-app-cm"
+objects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: medis-sftp-bin
+    data:
+      upload.sh: |
+        #!/bin/sh
+        cd /data/encrypted
+        echo -e "Files to be uploaded\n"
+        ls -l
+        echo -e "\nMoH SFTP server output\n"
+        sftp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa -oUserKnownHostsFile=/ssh-config/known_hosts -oIdentityFile=/ssh-hi/medis-etl-ssh-key ${SFTP_CONNECTION} <<EOF
+        cd ${SFTP_UPLOAD_DIR}
+        put *.gpg
+        put *.flag
+        quit
+        EOF
+        SFTP_RETURN_CODE=${?}
+        if [[ 0 != ${SFTP_RETURN_CODE} ]]
+          then
+          echo -e "SFTP file upload failed"
+          exit ${SFTP_RETURN_CODE}
+        else
+          echo -e "Files upload was successful, moving the files into archive"
+          mv * ../archive
+          echo -e "\nDeleting old files from archive directory"
+          cd ../archive
+          find -type f -mtime +${ARCHIVE_RETENTION_DAYS} -exec rm {} \;
+          echo -e "END"
+        fi
+        exit 0
+    immutable: false
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: medis-sftp-config-files
+    data:
+      known_hosts: |
+        |1|2hf2CGX/sGzVowYxTq8iI5JPoEo=|tYF8GGbxlvuR7idMrBd48SbDX88= ssh-rsa AAAAB3NzaC1yc2EAAAABEQAAAQEAsnw47jHyNAvuWNcDaepg/rV2HTzdcT6W+YYN1Kt2y90FM+1EBtsuE/AgS4EY9cx2lRA+74ukpM9/j4gHQ4ZfGfznY7NyNkql7RSiuDTw0IoIEEUh1u2Dm+9UZ1hbWcu6vsRCu2W25nALZh01gAuqsk8KJUZldzuWDELbRlSzscjEBV1VAiy0iYO5kJcqNfuj+3RNoWQ6yeKrRfQ3SkmpGGjPp0ViWqhWOU00gSeHH2w3v3uNsMsQ5ZmCfDS1NjAeU8qKM68K+WPMOjcXWpFScfUd5mdfI5/o1TbZQLJlwL/3CE0DfCd0T7aQ9I/8vgoyoWriPsxB+BV2Lf9ePPRxGQ==
+    immutable: false
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: medis-sftp-config-env
+    data:
+      SFTP_CONNECTION: ${P_SFTP_CONNECTION}
+      SFTP_UPLOAD_DIR: ${P_SFTP_UPLOAD_DIR}
+      ARCHIVE_RETENTION_DAYS: ${P_ARCHIVE_RETENTION_DAYS}
+    immutable: false
+parameters:
+  - name: P_SFTP_CONNECTION
+    description: Remote sftp server connection info in the form of user@host
+    displayName: SFTP Connection String
+    required: true
+  - name: P_SFTP_UPLOAD_DIR
+    description: Remote directory where the filesare uploaded to
+    displayName: SFTP Upload Directory
+    required: true
+  - name: P_ARCHIVE_RETENTION_DAYS
+    description: The number of days for backup copies of uploaded files will be kept for.
+    displayName: Archive retention in days
+    required: true
+  
