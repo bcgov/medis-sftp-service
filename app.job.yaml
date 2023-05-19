@@ -36,6 +36,10 @@ objects:
           containers:
           - image: image-registry.openshift-image-registry.svc:5000/c2da03-tools/medis-sftp-image:latest
             name: sftp
+            resources:
+              limits:
+                cpu: 100m
+                memory: 128Mi
             command:
             - "sh"
             - "-c"
