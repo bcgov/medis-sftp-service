@@ -1,7 +1,6 @@
-
 #!/bin/sh
 TS=`date +%Y%m%d%H%M%S`
-cd /data/encrypted
+cd /data/encrypted/ltc
 echo -e "Files to be uploaded\n"
 ls -l
 echo -e "Creating medis_ltc.flag file"
@@ -24,10 +23,10 @@ if [[ 0 != ${SFTP_RETURN_CODE} ]]
   exit ${SFTP_RETURN_CODE}
 else
   echo -e "Files upload was successful, moving the files into archive"
-  mkdir ../archive/${TS}
-  mv * ../archive/${TS}
+  mkdir ../../archive/${TS}
+  mv * ../../archive/${TS}
   echo -e "\nDeleting old files from archive directory"
-  cd ../archive
+  cd ../../archive
   find -type f -mtime +${ARCHIVE_RETENTION_DAYS} -exec rm {} \;
   echo -e "END"
 fi
